@@ -14,7 +14,252 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      candidates: {
+        Row: {
+          analyzed_at: string | null
+          created_at: string
+          current_company: string | null
+          current_job_title: string | null
+          email: string | null
+          error_message: string | null
+          file_name: string
+          file_path: string
+          full_name: string
+          id: string
+          job_description_id: string
+          parsed_education: Json
+          parsed_experience: Json
+          parsed_skills: string[]
+          phone: string | null
+          raw_text: string | null
+          session_id: string
+          status: Database["public"]["Enums"]["skillmatch_candidate_status"]
+          total_experience_years: number | null
+          updated_at: string
+        }
+        Insert: {
+          analyzed_at?: string | null
+          created_at?: string
+          current_company?: string | null
+          current_job_title?: string | null
+          email?: string | null
+          error_message?: string | null
+          file_name: string
+          file_path: string
+          full_name?: string
+          id?: string
+          job_description_id: string
+          parsed_education?: Json
+          parsed_experience?: Json
+          parsed_skills?: string[]
+          phone?: string | null
+          raw_text?: string | null
+          session_id: string
+          status?: Database["public"]["Enums"]["skillmatch_candidate_status"]
+          total_experience_years?: number | null
+          updated_at?: string
+        }
+        Update: {
+          analyzed_at?: string | null
+          created_at?: string
+          current_company?: string | null
+          current_job_title?: string | null
+          email?: string | null
+          error_message?: string | null
+          file_name?: string
+          file_path?: string
+          full_name?: string
+          id?: string
+          job_description_id?: string
+          parsed_education?: Json
+          parsed_experience?: Json
+          parsed_skills?: string[]
+          phone?: string | null
+          raw_text?: string | null
+          session_id?: string
+          status?: Database["public"]["Enums"]["skillmatch_candidate_status"]
+          total_experience_years?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidates_job_description_id_fkey"
+            columns: ["job_description_id"]
+            isOneToOne: false
+            referencedRelation: "job_descriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidates_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "screening_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_descriptions: {
+        Row: {
+          company: string
+          created_at: string
+          education_requirement: string | null
+          id: string
+          job_level: Database["public"]["Enums"]["skillmatch_job_level"]
+          max_experience_years: number | null
+          min_experience_years: number | null
+          preferred_skills: string[]
+          raw_text: string
+          required_skills: string[]
+          role_summary: string | null
+          session_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string
+          created_at?: string
+          education_requirement?: string | null
+          id?: string
+          job_level?: Database["public"]["Enums"]["skillmatch_job_level"]
+          max_experience_years?: number | null
+          min_experience_years?: number | null
+          preferred_skills?: string[]
+          raw_text: string
+          required_skills?: string[]
+          role_summary?: string | null
+          session_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string
+          created_at?: string
+          education_requirement?: string | null
+          id?: string
+          job_level?: Database["public"]["Enums"]["skillmatch_job_level"]
+          max_experience_years?: number | null
+          min_experience_years?: number | null
+          preferred_skills?: string[]
+          raw_text?: string
+          required_skills?: string[]
+          role_summary?: string | null
+          session_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_descriptions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "screening_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      match_results: {
+        Row: {
+          ai_summary: string
+          bonus_skills: string[]
+          candidate_id: string
+          concerns: string[]
+          created_at: string
+          id: string
+          job_description_id: string
+          keyword_score: number
+          matched_skills: string[]
+          missing_skills: string[]
+          overall_score: number
+          rank: number
+          semantic_score: number
+          session_id: string
+          strengths: string[]
+          updated_at: string
+        }
+        Insert: {
+          ai_summary: string
+          bonus_skills?: string[]
+          candidate_id: string
+          concerns?: string[]
+          created_at?: string
+          id?: string
+          job_description_id: string
+          keyword_score: number
+          matched_skills?: string[]
+          missing_skills?: string[]
+          overall_score: number
+          rank?: number
+          semantic_score: number
+          session_id: string
+          strengths?: string[]
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string
+          bonus_skills?: string[]
+          candidate_id?: string
+          concerns?: string[]
+          created_at?: string
+          id?: string
+          job_description_id?: string
+          keyword_score?: number
+          matched_skills?: string[]
+          missing_skills?: string[]
+          overall_score?: number
+          rank?: number
+          semantic_score?: number
+          session_id?: string
+          strengths?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_results_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: true
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_results_job_description_id_fkey"
+            columns: ["job_description_id"]
+            isOneToOne: false
+            referencedRelation: "job_descriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_results_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "screening_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      screening_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          last_seen_at: string
+          session_token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          session_token: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          session_token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +268,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      skillmatch_candidate_status:
+        | "pending"
+        | "processing"
+        | "analyzed"
+        | "shortlisted"
+        | "rejected"
+        | "failed"
+      skillmatch_job_level: "Junior" | "Mid" | "Senior" | "Lead"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +402,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      skillmatch_candidate_status: [
+        "pending",
+        "processing",
+        "analyzed",
+        "shortlisted",
+        "rejected",
+        "failed",
+      ],
+      skillmatch_job_level: ["Junior", "Mid", "Senior", "Lead"],
+    },
   },
 } as const
