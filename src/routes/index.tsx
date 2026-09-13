@@ -138,6 +138,13 @@ function SkillMatchPage() {
     else toast.error(`${failures.length} resume${failures.length > 1 ? "s" : ""} could not be analyzed: ${failures[0]?.error ?? "unknown error"}`);
   };
 
+  const goHome = () => {
+    setJob(null); setCandidates([]); setResults([]); setQueue([]); setSelected(null);
+    setQuery(""); setMinScore(0); setSort("score"); setJdText(SAMPLE_JD);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+
   const toggleStatus = async (candidate: Candidate, status: "shortlisted" | "rejected") => {
     const next = candidate.status === status ? "analyzed" : status;
     await setStatus({ data: { sessionToken, candidateId: candidate.id, status: next } });
