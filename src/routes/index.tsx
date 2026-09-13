@@ -1,10 +1,10 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowRight, Award, BriefcaseBusiness, Check, CheckCircle2, ChevronLeft, CircleAlert,
   CloudUpload, FileText, GraduationCap, LoaderCircle, Mail, Moon, Phone, Search,
-  ShieldCheck, Sparkles, Sun, Target, ThumbsDown, ThumbsUp, Trash2, UserRound, X,
+  ShieldCheck, Sparkles, Sun, Target, ThumbsDown, ThumbsUp, UserRound, X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
@@ -52,7 +51,6 @@ function getSessionToken() {
 
 function SkillMatchPage() {
   const reduceMotion = useReducedMotion();
-  const router = useRouter();
   const parseJob = useServerFn(parseJobDescription);
   const loadWorkspace = useServerFn(getWorkspace);
   const getUpload = useServerFn(createResumeUpload);
@@ -108,7 +106,10 @@ function SkillMatchPage() {
     const incoming = Array.from(files);
     const valid = incoming.filter((file) => /\.(pdf|docx)$/i.test(file.name) && file.size <= 5 * 1024 * 1024);
     if (valid.length !== incoming.length) toast.error("Only PDF/DOCX files up to 5 MB are accepted.");
-    setQueue((current) => [...current, ...valid.slice(0, Math.max(0, 20 - current.length))].map((file) => ({ file, status: "ready" })));
+    setQueue((current) => [
+      ...current,
+      ...valid.slice(0, Math.max(0, 20 - current.length)).map((file): QueueFile => ({ file, status: "ready" })),
+    ]);
   };
 
   const runUpload = async () => {
@@ -116,18 +117,19 @@ function SkillMatchPage() {
     setUploading(true);
     const next = [...queue];
     for (let i = 0; i < next.length; i += 1) {
-      if (next[i].status === "done") continue;
+      const item = next[i];
+      if (!item || item.status === "done") continue;
       try {
-        next[i] = { ...next[i], status: "uploading" }; setQueue([...next]);
-        const signed = await getUpload({ data: { sessionToken, jobId: job.id, fileName: next[i].file.name } });
-        const { error } = await supabase.storage.from("resumes").uploadToSignedUrl(signed.path, signed.token, next[i].file, { contentType: next[i].file.type });
+        next[i] = { ...item, status: "uploading" }; setQueue([...next]);
+        const signed = await getUpload({ data: { sessionToken, jobId: job.id, fileName: item.file.name } });
+        const { error } = await supabase.storage.from("resumes").uploadToSignedUrl(signed.path, signed.token, item.file, { contentType: item.file.type });
         if (error) throw error;
-        next[i] = { ...next[i], status: "analyzing" }; setQueue([...next]);
-        await process({ data: { sessionToken, jobId: job.id, fileName: next[i].file.name, filePath: signed.path } });
-        next[i] = { ...next[i], status: "done" }; setQueue([...next]);
+        next[i] = { ...item, status: "analyzing" }; setQueue([...next]);
+        await process({ data: { sessionToken, jobId: job.id, fileName: item.file.name, filePath: signed.path } });
+        next[i] = { ...item, status: "done" }; setQueue([...next]);
         await refresh();
       } catch (error) {
-        next[i] = { ...next[i], status: "failed", error: error instanceof Error ? error.message : "Processing failed" }; setQueue([...next]);
+        next[i] = { ...item, status: "failed", error: error instanceof Error ? error.message : "Processing failed" }; setQueue([...next]);
       }
     }
     setUploading(false); toast.success("Resume analysis complete");
@@ -187,7 +189,7 @@ function Workspace(props: { job: Job; rows: Array<{ result: Result; candidate: C
       <div className="min-h-44"><div className="flex items-center justify-between"><h3 className="font-display font-semibold">Processing queue</h3>{queue.length > 0 && <Button variant="hero" onClick={props.onUpload} disabled={props.uploading}>{props.uploading ? <LoaderCircle className="animate-spin"/> : <Sparkles/>}{props.uploading ? "Analyzing…" : "Analyze resumes"}</Button>}</div>{queue.length === 0 ? <div className="mt-5 flex h-32 items-center justify-center border border-dashed border-border text-sm text-muted-foreground">Selected files will appear here</div> : <div className="mt-4 space-y-2">{queue.map((item,index)=><div key={`${item.file.name}-${index}`} className="flex items-center gap-3 border-b border-border py-2"><StatusIcon status={item.status}/><span className="min-w-0 flex-1 truncate text-sm">{item.file.name}</span><span className="text-xs text-muted-foreground">{(item.file.size/1024/1024).toFixed(1)} MB</span>{item.status === "ready" && <Button variant="ghost" size="icon" onClick={()=>props.onRemove(index)} aria-label={`Remove ${item.file.name}`}><X/></Button>}</div>)}</div>}</div></div></section>
 
     <section className="pt-10"><div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between"><div><p className="text-sm text-accent">Ranked candidates</p><h2 className="font-display mt-1 text-3xl font-bold">Screening dashboard</h2></div><div className="grid grid-cols-3 divide-x divide-border border border-border"><Stat label="Total" value={String(rows.length)}/><Stat label="Avg score" value={String(avg)}/><Stat label="Top" value={String(scores.length ? Math.round(Math.max(...scores)) : 0)}/></div></div>
-      <div className="mt-7 grid gap-4 border-y border-border py-4 md:grid-cols-[1fr_220px_220px]"><label className="relative"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground"/><Input value={props.query} onChange={(e)=>props.onQuery(e.target.value)} placeholder="Search candidates" className="pl-9"/></label><Select value={props.sort} onValueChange={props.onSort}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="score">Score (High→Low)</SelectItem><SelectItem value="name">Name (A→Z)</SelectItem><SelectItem value="date">Date (Newest)</SelectItem></SelectContent></Select><div className="flex items-center gap-3"><Slider min={0} max={100} value={[props.minScore]} onValueChange={(value)=>props.onScore(value[0])}/><span className="w-12 text-right text-xs">≥{props.minScore}</span></div></div>
+      <div className="mt-7 grid gap-4 border-y border-border py-4 md:grid-cols-[1fr_220px_220px]"><label className="relative"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground"/><Input value={props.query} onChange={(e)=>props.onQuery(e.target.value)} placeholder="Search candidates" className="pl-9"/></label><Select value={props.sort} onValueChange={props.onSort}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="score">Score (High→Low)</SelectItem><SelectItem value="name">Name (A→Z)</SelectItem><SelectItem value="date">Date (Newest)</SelectItem></SelectContent></Select><div className="flex items-center gap-3"><Slider min={0} max={100} value={[props.minScore]} onValueChange={(value)=>props.onScore(value[0] ?? 0)}/><span className="w-12 text-right text-xs">≥{props.minScore}</span></div></div>
       {rows.length === 0 ? <div className="py-20 text-center"><UserRound className="mx-auto size-10 text-muted-foreground"/><h3 className="mt-4 font-display text-lg font-semibold">No ranked candidates yet</h3><p className="mt-2 text-sm text-muted-foreground">Upload resumes above to build your shortlist.</p></div> : <><div className="hidden overflow-hidden border-b border-border md:block"><table className="w-full text-left"><thead className="text-xs uppercase text-muted-foreground"><tr className="border-b border-border"><th className="px-3 py-4">Rank</th><th className="px-3 py-4">Candidate</th><th className="px-3 py-4">Score</th><th className="px-3 py-4">Matched skills</th><th className="px-3 py-4">Missing</th><th className="px-3 py-4 text-right">Actions</th></tr></thead><tbody>{rows.map(({candidate,result},index)=><CandidateRow key={candidate.id} candidate={candidate} result={result} index={index} onSelect={props.onSelect} onStatus={props.onStatus}/>)}</tbody></table></div><div className="grid gap-3 py-5 md:hidden">{rows.map(({candidate,result})=><CandidateCard key={candidate.id} candidate={candidate} result={result} onSelect={props.onSelect} onStatus={props.onStatus}/>)}</div></>}
     </section>
   </div>;
@@ -197,7 +199,7 @@ function RequirementCard({icon,label,value,skills,tone}:{icon:React.ReactNode;la
 function Stat({label,value}:{label:string;value:string}) { return <div className="min-w-24 px-5 py-3 text-center"><strong className="font-display block text-xl">{value}</strong><span className="text-xs text-muted-foreground">{label}</span></div> }
 function StatusIcon({status}:{status:QueueFile["status"]}) { if(status==="done") return <CheckCircle2 className="size-4 text-success"/>; if(status==="failed") return <CircleAlert className="size-4 text-destructive"/>; if(status==="uploading"||status==="analyzing") return <LoaderCircle className="size-4 animate-spin text-accent"/>; return <FileText className="size-4 text-muted-foreground"/> }
 function scoreTone(score:number) { return score>=75?"success":score>=50?"warning":"destructive" }
-function ScoreRing({score,label,large=false}:{score:number;label:string;large?:boolean}) { const tone=scoreTone(score); return <div className={`score-ring ${large?"score-ring-large":""}`} style={{"--score":`${score*3.6}deg`} as React.CSSProperties}><div><strong className={`text-${tone}`}>{Math.round(score)}</strong><span>{label}</span></div></div> }
+function ScoreRing({score,label,large=false}:{score:number;label:string;large?:boolean}) { const tone=scoreTone(score); const toneClass = tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-destructive"; return <div className={`score-ring ${large?"score-ring-large":""}`} style={{"--score":`${score*3.6}deg`} as React.CSSProperties}><div><strong className={toneClass}>{Math.round(score)}</strong><span>{label}</span></div></div> }
 function CandidateRow({candidate,result,index,onSelect,onStatus}:{candidate:Candidate;result:Result;index:number;onSelect:(id:string)=>void;onStatus:(c:Candidate,s:"shortlisted"|"rejected")=>void}) { return <motion.tr initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{delay:index*.04}} className="border-b border-border/70"><td className="px-3 py-5 font-display text-lg">#{result.rank}</td><td className="px-3 py-5"><strong className="block">{candidate.full_name}</strong><span className="text-xs text-muted-foreground">{candidate.current_job_title ?? candidate.file_name}</span></td><td className="px-3 py-5"><ScoreRing score={result.overall_score} label="match"/></td><td className="max-w-56 px-3 py-5"><Pills items={result.matched_skills.slice(0,3)} tone="match"/></td><td className="max-w-48 px-3 py-5"><Pills items={result.missing_skills.slice(0,2)} tone="missing"/></td><td className="px-3 py-5"><div className="flex justify-end gap-2"><Button variant={candidate.status==="shortlisted"?"success":"outline"} size="sm" onClick={()=>onStatus(candidate,"shortlisted")}><ThumbsUp/> Shortlist</Button><Button variant="ghost" size="sm" onClick={()=>onSelect(candidate.id)}>View <ArrowRight/></Button></div></td></motion.tr> }
 function CandidateCard({candidate,result,onSelect,onStatus}:{candidate:Candidate;result:Result;onSelect:(id:string)=>void;onStatus:(c:Candidate,s:"shortlisted"|"rejected")=>void}) { return <article className="candidate-card"><div className="flex items-start justify-between"><div><span className="text-xs text-accent">RANK #{result.rank}</span><h3 className="font-display mt-1 text-lg font-bold">{candidate.full_name}</h3></div><ScoreRing score={result.overall_score} label="match"/></div><div className="mt-4"><Pills items={result.matched_skills.slice(0,4)} tone="match"/></div><div className="mt-2"><Pills items={result.missing_skills.slice(0,3)} tone="missing"/></div><div className="mt-5 flex gap-2"><Button variant={candidate.status==="shortlisted"?"success":"outline"} size="sm" onClick={()=>onStatus(candidate,"shortlisted")}><ThumbsUp/> Shortlist</Button><Button variant="ghost" size="sm" onClick={()=>onSelect(candidate.id)}>View details <ArrowRight/></Button></div></article> }
 function Pills({items,tone}:{items:string[];tone:"match"|"missing"|"bonus"}) { return <div className="flex flex-wrap gap-1.5">{items.map(item=><span key={item} className={`pill pill-${tone}`}>{item}</span>)}</div> }
@@ -206,7 +208,7 @@ function CandidateDetail({candidate,result,onStatus,onBack}:{candidate:Candidate
   const education = Array.isArray(candidate.parsed_education) ? candidate.parsed_education as Array<Record<string,Json|undefined>> : [];
   const experience = Array.isArray(candidate.parsed_experience) ? candidate.parsed_experience as Array<Record<string,Json|undefined>> : [];
   return <div className="pb-24"><SheetHeader><div className="flex items-center gap-3"><Badge>#{result.rank}</Badge><SheetTitle className="font-display text-2xl">{candidate.full_name}</SheetTitle></div><SheetDescription>{candidate.current_job_title ?? "Candidate"}{candidate.current_company ? ` at ${candidate.current_company}` : ""}</SheetDescription></SheetHeader><div className="mt-7 grid gap-8 xl:grid-cols-[.9fr_1fr_1fr]">
-    <section><h3 className="detail-heading"><UserRound/> Resume profile</h3><div className="mt-4 space-y-2 text-sm">{candidate.email&&<p className="flex gap-2"><Mail className="size-4 text-muted-foreground"/>{candidate.email}</p>}{candidate.phone&&<p className="flex gap-2"><Phone className="size-4 text-muted-foreground"/>{candidate.phone}</p>}<Badge variant="outline">{candidate.total_experience_years ?? 0} years total</Badge></div><Accordion type="multiple" defaultValue={["skills"]} className="mt-5"><AccordionItem value="skills"><AccordionTrigger>Skills</AccordionTrigger><AccordionContent><Pills items={candidate.parsed_skills} tone="bonus"/></AccordionContent></AccordionItem><AccordionItem value="education"><AccordionTrigger>Education</AccordionTrigger><AccordionContent>{education.map((item,i)=><div key={i} className="mb-3 text-sm"><strong>{String(item.degree??"")}</strong><p className="text-muted-foreground">{String(item.institution??"")} {item.year?`· ${String(item.year)}`:""}</p></div>)}</AccordionContent></AccordionItem><AccordionItem value="experience"><AccordionTrigger>Experience</AccordionTrigger><AccordionContent>{experience.map((item,i)=><div key={i} className="mb-4 border-l-2 border-accent pl-3 text-sm"><strong>{String(item.role??"")}</strong><p className="text-muted-foreground">{String(item.company??"")} · {String(item.duration??"")}</p></div>)}</AccordionContent></AccordionItem></Accordion></section>
+    <section><h3 className="detail-heading"><UserRound/> Resume profile</h3><div className="mt-4 space-y-2 text-sm">{candidate.email&&<p className="flex gap-2"><Mail className="size-4 text-muted-foreground"/>{candidate.email}</p>}{candidate.phone&&<p className="flex gap-2"><Phone className="size-4 text-muted-foreground"/>{candidate.phone}</p>}<Badge variant="outline">{candidate.total_experience_years ?? 0} years total</Badge></div><Accordion type="multiple" defaultValue={["skills"]} className="mt-5"><AccordionItem value="skills"><AccordionTrigger>Skills</AccordionTrigger><AccordionContent><Pills items={candidate.parsed_skills} tone="bonus"/></AccordionContent></AccordionItem><AccordionItem value="education"><AccordionTrigger>Education</AccordionTrigger><AccordionContent>{education.map((item,i)=><div key={i} className="mb-3 text-sm"><strong>{String(item["degree"]??"")}</strong><p className="text-muted-foreground">{String(item["institution"]??"")} {item["year"]?`· ${String(item["year"])}`:""}</p></div>)}</AccordionContent></AccordionItem><AccordionItem value="experience"><AccordionTrigger>Experience</AccordionTrigger><AccordionContent>{experience.map((item,i)=><div key={i} className="mb-4 border-l-2 border-accent pl-3 text-sm"><strong>{String(item["role"]??"")}</strong><p className="text-muted-foreground">{String(item["company"]??"")} · {String(item["duration"]??"")}</p></div>)}</AccordionContent></AccordionItem></Accordion></section>
     <section><h3 className="detail-heading"><Target/> Skill matching</h3><MatchGroup title="Matched" items={result.matched_skills} tone="match"/><MatchGroup title="Missing" items={result.missing_skills} tone="missing"/><MatchGroup title="Bonus" items={result.bonus_skills} tone="bonus"/></section>
     <section><h3 className="detail-heading"><Award/> Score breakdown</h3><div className="mt-5 flex flex-wrap items-center justify-center gap-5"><ScoreRing score={result.keyword_score} label="Keyword"/><ScoreRing score={result.semantic_score} label="Context"/><ScoreRing score={result.overall_score} label="Overall" large/></div><div className="mt-7 border-t border-border pt-6"><h4 className="font-display font-semibold">AI rationale</h4><p className="mt-3 text-sm leading-6 text-muted-foreground">{result.ai_summary}</p><h5 className="mt-5 text-sm font-semibold text-success">Strengths</h5><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">{result.strengths.map(x=><li key={x}>{x}</li>)}</ul><h5 className="mt-5 text-sm font-semibold text-warning">Concerns</h5><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">{result.concerns.map(x=><li key={x}>{x}</li>)}</ul></div></section>
   </div><div className="fixed bottom-0 right-0 z-10 flex w-full flex-wrap justify-end gap-2 border-t border-border bg-background/95 p-4 backdrop-blur-xl sm:w-[94vw] xl:w-[72rem]"><Button variant="ghost" onClick={onBack}><ChevronLeft/> Back to dashboard</Button><Button variant={candidate.status==="rejected"?"destructive":"outline"} onClick={()=>onStatus(candidate,"rejected")}><ThumbsDown/> Reject</Button><Button variant={candidate.status==="shortlisted"?"success":"hero"} onClick={()=>onStatus(candidate,"shortlisted")}><ThumbsUp/> Shortlist</Button></div></div>;
