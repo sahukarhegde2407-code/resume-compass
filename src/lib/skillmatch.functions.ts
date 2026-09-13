@@ -41,7 +41,7 @@ function cleanJson(raw: string): unknown {
   return JSON.parse(trimmed);
 }
 
-async function groqJson<T>(prompt: string, schema: z.ZodType<T>): Promise<T> {
+async function groqJson<T>(prompt: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>): Promise<T> {
   const key = process.env['GROQ_API_KEY'];
   if (!key) throw new Error("Groq is not configured. Add GROQ_API_KEY in project secrets.");
 
