@@ -79,26 +79,51 @@ async function groqJson<T>(prompt: string, schema: z.ZodType<T>): Promise<T> {
   throw new Error(lastError);
 }
 
+function isTransient(message: string) {
+  return /timeout|gateway|fetch failed|econnreset|502|503|504/i.test(message);
+}
+
+async function withRetry<T>(run: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastMessage = "Request failed.";
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await run();
+    } catch (error) {
+      lastMessage = error instanceof Error ? error.message : String(error);
+      if (!isTransient(lastMessage) || attempt === attempts - 1) break;
+      await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+    }
+  }
+  throw new Error(
+    isTransient(lastMessage)
+      ? "The database is waking up. Please try again in a moment."
+      : lastMessage,
+  );
+}
+
 async function getSession(sessionToken: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: existing, error } = await supabaseAdmin
-    .from("screening_sessions")
-    .select("id")
-    .eq("session_token", sessionToken)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (existing) {
-    await supabaseAdmin.from("screening_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", existing.id);
-    return existing.id;
-  }
-  const { data, error: createError } = await supabaseAdmin
-    .from("screening_sessions")
-    .insert({ session_token: sessionToken })
-    .select("id")
-    .single();
-  if (createError) throw new Error(createError.message);
-  return data.id;
+  return withRetry(async () => {
+    const { data: existing, error } = await supabaseAdmin
+      .from("screening_sessions")
+      .select("id")
+      .eq("session_token", sessionToken)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (existing) {
+      await supabaseAdmin.from("screening_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", existing.id);
+      return existing.id;
+    }
+    const { data, error: createError } = await supabaseAdmin
+      .from("screening_sessions")
+      .insert({ session_token: sessionToken })
+      .select("id")
+      .single();
+    if (createError) throw new Error(createError.message);
+    return data.id;
+  });
 }
+
 
 async function assertJob(sessionId: string, jobId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
