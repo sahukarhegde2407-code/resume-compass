@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  ArrowRight, Award, BriefcaseBusiness, Check, CheckCircle2, ChevronLeft, CircleAlert,
+  ArrowLeft, ArrowRight, Award, BriefcaseBusiness, Check, CheckCircle2, ChevronLeft, CircleAlert,
   CloudUpload, FileText, GraduationCap, LoaderCircle, Mail, Moon, Phone, Search,
   ShieldCheck, Sparkles, Sun, Target, ThumbsDown, ThumbsUp, UserRound, X,
 } from "lucide-react";
@@ -132,8 +132,18 @@ function SkillMatchPage() {
         next[i] = { ...item, status: "failed", error: error instanceof Error ? error.message : "Processing failed" }; setQueue([...next]);
       }
     }
-    setUploading(false); toast.success("Resume analysis complete");
+    setUploading(false);
+    const failures = next.filter((item) => item.status === "failed");
+    if (failures.length === 0) toast.success("Resume analysis complete");
+    else toast.error(`${failures.length} resume${failures.length > 1 ? "s" : ""} could not be analyzed: ${failures[0]?.error ?? "unknown error"}`);
   };
+
+  const goHome = () => {
+    setJob(null); setCandidates([]); setResults([]); setQueue([]); setSelected(null);
+    setQuery(""); setMinScore(0); setSort("score"); setJdText(SAMPLE_JD);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
 
   const toggleStatus = async (candidate: Candidate, status: "shortlisted" | "rejected") => {
     const next = candidate.status === status ? "analyzed" : status;
@@ -147,9 +157,14 @@ function SkillMatchPage() {
         <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex items-center gap-3" aria-label="SkillMatch AI home">
           <span className="logo-mark"><FileText className="size-5" /></span><span className="font-display text-lg font-bold">SkillMatch <span className="text-gradient">AI</span></span>
         </button>
-        <div className="flex items-center gap-3"><span className="hidden text-xs text-muted-foreground sm:block">Decision support, not auto-rejection</span><ShieldCheck className="size-4 text-success" /></div>
+        <div className="flex items-center gap-3">
+          <span className="hidden text-xs text-muted-foreground lg:block">Decision support, not auto-rejection</span>
+          <ShieldCheck className="size-4 text-success" />
+          {job && <Button variant="outline" size="sm" onClick={goHome}><ArrowLeft /> Back to homepage</Button>}
+        </div>
       </div>
     </header>
+
 
     {!job ? <section className="hero-grid relative flex min-h-[92vh] items-center pt-16">
       <div className="mx-auto w-full max-w-7xl px-5 py-20 lg:px-8">

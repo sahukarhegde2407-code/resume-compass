@@ -9,7 +9,7 @@ import {
 } from "./skillmatch.schemas";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 
 const parseJobInput = z.object({
   sessionToken: sessionTokenSchema,
@@ -41,7 +41,7 @@ function cleanJson(raw: string): unknown {
   return JSON.parse(trimmed);
 }
 
-async function groqJson<T>(prompt: string, schema: z.ZodType<T>): Promise<T> {
+async function groqJson<T>(prompt: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>): Promise<T> {
   const key = process.env['GROQ_API_KEY'];
   if (!key) throw new Error("Groq is not configured. Add GROQ_API_KEY in project secrets.");
 
