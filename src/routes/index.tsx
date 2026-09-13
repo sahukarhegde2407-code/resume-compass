@@ -132,7 +132,10 @@ function SkillMatchPage() {
         next[i] = { ...item, status: "failed", error: error instanceof Error ? error.message : "Processing failed" }; setQueue([...next]);
       }
     }
-    setUploading(false); toast.success("Resume analysis complete");
+    setUploading(false);
+    const failures = next.filter((item) => item.status === "failed");
+    if (failures.length === 0) toast.success("Resume analysis complete");
+    else toast.error(`${failures.length} resume${failures.length > 1 ? "s" : ""} could not be analyzed: ${failures[0]?.error ?? "unknown error"}`);
   };
 
   const toggleStatus = async (candidate: Candidate, status: "shortlisted" | "rejected") => {
