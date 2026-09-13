@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  ArrowRight, Award, BriefcaseBusiness, Check, CheckCircle2, ChevronLeft, CircleAlert,
+  ArrowLeft, ArrowRight, Award, BriefcaseBusiness, Check, CheckCircle2, ChevronLeft, CircleAlert,
   CloudUpload, FileText, GraduationCap, LoaderCircle, Mail, Moon, Phone, Search,
   ShieldCheck, Sparkles, Sun, Target, ThumbsDown, ThumbsUp, UserRound, X,
 } from "lucide-react";
