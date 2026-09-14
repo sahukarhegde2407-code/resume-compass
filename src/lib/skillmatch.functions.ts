@@ -175,16 +175,9 @@ async function extractText(fileName: string, bytes: ArrayBuffer): Promise<string
     const result = await mammoth.extractRawText({ buffer: Buffer.from(bytes) });
     text = result.value;
   } else {
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-    const pdf = await pdfjs.getDocument({ data: new Uint8Array(bytes) }).promise;
-    const pages: string[] = [];
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const content = await page.getTextContent();
-      pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
-    }
-    text = pages.join("\n");
+    const pdfParse = await import("pdf-parse/lib/pdf-parse.js");
+    const pdfData = await pdfParse.default(Buffer.from(bytes));
+    text = pdfData.text;
   }
   const cleaned = text.replace(/\u0000/g, "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
   if (cleaned.length < 80) throw new Error("We could not read enough text from this resume.");
